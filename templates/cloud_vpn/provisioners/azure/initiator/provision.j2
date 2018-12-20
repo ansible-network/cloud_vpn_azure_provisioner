@@ -158,7 +158,7 @@
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[variables('vmName')]",
       "location": "[parameters('location')]",
-{% if cloud_vpn_initiator_azure_image_needs_plan %}
+{% if cloud_vpn_initiator_azure_image_needs_plan|default(False) %}
       "plan": {
         "name": "{{ cloud_vpn_initiator_azure_image_sku }}",
         "publisher": "{{ cloud_vpn_initiator_azure_image_publisher }}",
