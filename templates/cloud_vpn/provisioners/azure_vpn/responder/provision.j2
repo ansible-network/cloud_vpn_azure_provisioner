@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "resources": [
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "{{ cloud_vpn_name }}-responder-network",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "{{ cloud_vpn_responder_vpc_cidr }}"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "{{ cloud_vpn_name }}-responder-subnet",
+            "properties": {
+              "addressPrefix": "{{ cloud_vpn_responder_cidr }}"
+            }
+          },
+          {
+            "name": "GatewaySubnet",
+            "properties": {
+              "addressPrefix": "{{ cloud_vpn_tunnel_cidr }}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "{{ cloud_vpn_name }}-responder-gw-ip",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      }
+    },
+  ]
+}

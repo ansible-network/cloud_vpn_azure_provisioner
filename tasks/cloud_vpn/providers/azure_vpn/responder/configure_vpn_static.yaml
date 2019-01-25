@@ -1,0 +1,21 @@
+---
+- name: Create responder resource group
+  azure_rm_resourcegroup:
+    name: "{{ cloud_vpn_name }}-responder-resource-group"
+    location: "{{ cloud_vpn_responder_azure_region }}"
+    subscription_id: "{{ cloud_vpn_responder_azure_subscription_id }}"
+    tenant: "{{ cloud_vpn_responder_azure_tenant }}"
+    client_id: "{{ cloud_vpn_responder_azure_client_id }}"
+    secret: "{{ cloud_vpn_responder_azure_secret }}"
+
+- name: Create Azure VPN responder stack
+  azure_rm_deployment:
+    resource_group: "{{ cloud_vpn_name }}-responder-resource-group"
+    location: "{{ cloud_vpn_responder_azure_region }}"
+    deployment_name: "{{ cloud_vpn_name }}-responder-template"
+    template: "{{ lookup('template', 'templates/cloud_vpn/providers/azure_vpn/responder/configure_vpn_static.j2') }}"
+    subscription_id: "{{ cloud_vpn_responder_azure_subscription_id }}"
+    tenant: "{{ cloud_vpn_responder_azure_tenant }}"
+    client_id: "{{ cloud_vpn_responder_azure_client_id }}"
+    secret: "{{ cloud_vpn_responder_azure_secret }}"
+  register: out

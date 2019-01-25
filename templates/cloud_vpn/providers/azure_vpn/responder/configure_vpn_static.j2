@@ -1,0 +1,72 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "gatewaySubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', '{{ cloud_vpn_name
+    }}-responder-network', 'GatewaySubnet')]"
+  },
+  "resources": [
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/localNetworkGateways",
+      "name": "{{ cloud_vpn_name }}-initiator-local-gw",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "localNetworkAddressSpace": {
+          "addressPrefixes": "{{ cloud_vpn_initiator_cidr }}"
+        },
+        "gatewayIpAddress": "{{ cloud_vpn_initiator_public_ip }}"
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "name": "{{ cloud_vpn_name }}-responder-connection",
+      "type": "Microsoft.Network/connections",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/virtualNetworkGateways/', '{{ cloud_vpn_name }}-responder-gw')]",
+        "[concat('Microsoft.Network/localNetworkGateways/', '{{ cloud_vpn_name }}-initiator-local-gw')]"
+      ],
+      "properties": {
+        "virtualNetworkGateway1": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworkGateways', '{{ cloud_vpn_name }}-responder-gw')]"
+        },
+        "localNetworkGateway2": {
+          "id": "[resourceId('Microsoft.Network/localNetworkGateways', '{{ cloud_vpn_name }}-initiator-local-gw')]"
+        },
+        "connectionType": "IPsec",
+        "routingWeight": 10,
+        "sharedKey": "{{ cloud_vpn_psk }}"
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/virtualNetworkGateways",
+      "name": "{{ cloud_vpn_name }}-responder-gw",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('gatewaySubnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', '{{ cloud_vpn_name }}-responder-gw-ip')]"
+              }
+            },
+            "name": "vnetGatewayConfig"
+          }
+        ],
+        "sku": {
+          "name": "Standard",
+          "tier": "Standard"
+        },
+        "gatewayType": "Vpn",
+        "vpnType": "RouteBased",
+        "enableBgp": "false"
+      }
+    }
+  ]
+}
