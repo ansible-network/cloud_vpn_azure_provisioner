@@ -1,49 +1,142 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
   "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vpnType": {
+      "type": "string",
+      "metadata": {
+        "description": "Route based or policy based"
+      },
+      "defaultValue": "RouteBased",
+      "allowedValues": [
+        "RouteBased",
+        "PolicyBased"
+      ]
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "defaultValue": "azureVnet",
+      "metadata": {
+        "description": "Arbitrary name for the Azure Virtual Network"
+      }
+    },
+    "localGatewayName": {
+      "type": "string",
+      "defaultValue": "localGateway",
+      "metadata": {
+        "description": "Arbitrary name for gateway resource representing "
+      }
+    },
+    "localGatewayIpAddress": {
+      "type": "string",
+      "defaultValue": "1.1.1.1",
+      "metadata": {
+        "description": "Public IP of your StrongSwan Instance"
+      }
+    },
+    "localAddressPrefix": {
+      "type": "array",
+      "defaultValue": [
+        "192.168.0.0/16",
+        "172.16.0.0/12"
+      ],
+      "metadata": {
+        "description": "CIDR block representing the address space of the OnPremise VPN network's Subnet"
+      }
+    },
+    "gatewayPublicIPName": {
+      "type": "string",
+      "defaultValue": "azureGatewayIP",
+      "metadata": {
+        "description": "Arbitrary name for public IP resource used for the new azure gateway"
+      }
+    },
+    "gatewayName": {
+      "type": "string",
+      "defaultValue": "azureGateway",
+      "metadata": {
+        "description": "Arbitrary name for the new gateway"
+      }
+    },
+    "gatewaySku": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "HighPerformance"
+      ],
+      "metadata": {
+        "description": "The Sku of the Gateway. This must be one of Basic, Standard or HighPerformance."
+      }
+    },
+    "connectionName": {
+      "type": "string",
+      "defaultValue": "Azure2Other",
+      "metadata": {
+        "description": "Arbitrary name for the new connection between Azure VNet and other network"
+      }
+    },
+    "sharedKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Shared key (PSK) for IPSec tunnel"
+      }
+    }
+  },
   "variables": {
-    "gatewaySubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', '{{ cloud_vpn_name
-    }}-responder-network', 'GatewaySubnet')]"
+    "gatewaySubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'),'GatewaySubnet')]"
   },
   "resources": [
     {
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Network/localNetworkGateways",
-      "name": "{{ cloud_vpn_name }}-initiator-local-gw",
+      "name": "[parameters('localGatewayName')]",
       "location": "[resourceGroup().location]",
       "properties": {
         "localNetworkAddressSpace": {
-          "addressPrefixes": "{{ cloud_vpn_initiator_cidr }}"
+          "addressPrefixes": "[parameters('localAddressPrefix')]"
         },
-        "gatewayIpAddress": "{{ cloud_vpn_initiator_public_ip }}"
+        "gatewayIpAddress": "[parameters('localGatewayIpAddress')]"
       }
     },
     {
       "apiVersion": "2015-06-15",
-      "name": "{{ cloud_vpn_name }}-responder-connection",
+      "name": "[parameters('connectionName')]",
       "type": "Microsoft.Network/connections",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[concat('Microsoft.Network/virtualNetworkGateways/', '{{ cloud_vpn_name }}-responder-gw')]",
-        "[concat('Microsoft.Network/localNetworkGateways/', '{{ cloud_vpn_name }}-initiator-local-gw')]"
+        "[concat('Microsoft.Network/localNetworkGateways/', parameters('localGatewayName'))]"
       ],
       "properties": {
         "virtualNetworkGateway1": {
-          "id": "[resourceId('Microsoft.Network/virtualNetworkGateways', '{{ cloud_vpn_name }}-responder-gw')]"
+          "id": "[resourceId('Microsoft.Network/virtualNetworkGateways', parameters('gatewayName'))]"
         },
         "localNetworkGateway2": {
-          "id": "[resourceId('Microsoft.Network/localNetworkGateways', '{{ cloud_vpn_name }}-initiator-local-gw')]"
+          "id": "[resourceId('Microsoft.Network/localNetworkGateways', parameters('localGatewayName'))]"
         },
         "connectionType": "IPsec",
         "routingWeight": 10,
-        "sharedKey": "{{ cloud_vpn_psk }}"
+        "sharedKey": "[parameters('sharedKey')]"
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[parameters('gatewayPublicIPName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
       }
     },
     {
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Network/virtualNetworkGateways",
-      "name": "{{ cloud_vpn_name }}-responder-gw",
+      "name": "[parameters('gatewayName')]",
       "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', parameters('gatewayPublicIPName'))]"
+      ],
       "properties": {
         "ipConfigurations": [
           {
@@ -53,18 +146,18 @@
                 "id": "[variables('gatewaySubnetRef')]"
               },
               "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses', '{{ cloud_vpn_name }}-responder-gw-ip')]"
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses',parameters('gatewayPublicIPName'))]"
               }
             },
             "name": "vnetGatewayConfig"
           }
         ],
         "sku": {
-          "name": "Standard",
-          "tier": "Standard"
+          "name": "[parameters('gatewaySku')]",
+          "tier": "[parameters('gatewaySku')]"
         },
         "gatewayType": "Vpn",
-        "vpnType": "RouteBased",
+        "vpnType": "[parameters('vpnType')]",
         "enableBgp": "false"
       }
     }
